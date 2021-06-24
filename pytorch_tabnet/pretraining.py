@@ -168,7 +168,7 @@ class TabNetPretrainer(TabModel):
         """Setup the network and explain matrix."""
         if not hasattr(self, 'pretraining_ratio'):
             self.pretraining_ratio = 0.5
-        self.network = tab_network.TabNetPretraining(
+        self.network = tab_network.TabNetCustomPretraining(
             self.input_dim,
             pretraining_ratio=self.pretraining_ratio,
             n_d=self.n_d,
@@ -304,7 +304,7 @@ class TabNetPretrainer(TabModel):
         for param in self.network.parameters():
             param.grad = None
 
-        output, embedded_x, obf_vars = self.network(X)
+        output, embedded_x, obf_vars, _ = self.network(X)
         loss = self.compute_loss(output, embedded_x, obf_vars)
 
         # Perform backward pass and optimization
@@ -336,7 +336,7 @@ class TabNetPretrainer(TabModel):
         list_obfuscation = []
         # Main loop
         for batch_idx, X in enumerate(loader):
-            output, embedded_x, obf_vars = self._predict_batch(X)
+            output, embedded_x, obf_vars, _ = self._predict_batch(X)
             list_output.append(output)
             list_embedded_x.append(embedded_x)
             list_obfuscation.append(obf_vars)
@@ -396,12 +396,15 @@ class TabNetPretrainer(TabModel):
 
         results = []
         embedded_res = []
+        embedded_e_res = []
         for batch_nb, data in enumerate(dataloader):
             data = data.to(self.device).float()
-            output, embeded_x, _ = self.network(data)
+            output, embeded_x, _, embedded_e = self.network(data)
             predictions = output.cpu().detach().numpy()
             results.append(predictions)
             embedded_res.append(embeded_x.cpu().detach().numpy())
+            embedded_e_res.append(embedded_e[0].cpu().detach().numpy())
         res_output = np.vstack(results)
         embedded_inputs = np.vstack(embedded_res)
-        return res_output, embedded_inputs
+        embedded_e_output = np.vstack(embedded_e_res)
+        return res_output, embedded_inputs, embedded_e_output
